@@ -8,24 +8,19 @@ void printstring(char*);
 void readstring(char*);
 void readsector(char*, int);
 void makeInterrupt21(int,int,int,int);
+void readFile(char*, char*, int*);
 
 void main(){
-	char line[80];
-	char line2[80];
-	char buffer[512];
-	char* interruptstring = "the interrupt for printstring";
-	char buffer2[512];
-	printstring("Hello world\n");
-	printstring("Enter a line: ");
-	readstring(line);
-	printstring(line);
-	readsector(buffer, 30);
-	printstring(buffer);
+	char buffer[13312];
+	int sectorsread = 0;
+	printstring("Hello world\r\n");
 	makeInterrupt21();
-	interrupt(0x21,0,interruptstring,0,0);
-	interrupt(0x21,1,line2,0,0);
-	interrupt(0x21,2,buffer,30,0);
-	interrupt(0x21,5,0,0,0);
+	//sectorsread = readFile("messag", buffer);
+	interrupt(0x21,3,"messag", buffer,&sectorsread);
+	if (sectorsread > 0)
+		interrupt(0x21,0,buffer,0,0);
+	else
+		interrupt(0x21,0,"messag not found\r\n",0,0);
         while(1);
 }
 
@@ -83,7 +78,36 @@ void handleInterrupt21(int AX, int BX, int CX, int DX){
 	else if (AX==2){
 	readsector(BX,CX);
 	}
+	else if (AX==3){
+	readFile(BX,CX,DX);
+	}
 	else{
 	printstring("Error with interrupt 21");
+	}
+}
+void readFile(char* filename, char* buffer, int* sectorsread){
+	char directory[512];
+	int filenamematch = 1;
+	int i = 0;
+	int fileentry = 0;
+	int sectorcount = 0;
+	readsector(directory, 2);
+	for (fileentry = 0; fileentry < 512; fileentry=fileentry+32){
+		filenamematch = 1;
+		for (i = 0; i < 6; ++i){
+			if(directory[fileentry+i] != filename[i]){
+				filenamematch = 0;
+			}
+		}
+		if (filenamematch){
+			for (i = 0; i < 26; ++i)
+				if (directory[fileentry+6+i] != 0x00){{
+					readsector(*(&buffer+512*i), directory[fileentry+6+i]);
+					sectorcount = sectorcount+1;
+				}
+			}
+			*sectorsread = sectorcount;
+			fileentry = 512;
+		}
 	}
 }
