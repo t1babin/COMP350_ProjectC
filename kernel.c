@@ -9,18 +9,19 @@ void readstring(char*);
 void readsector(char*, int);
 void makeInterrupt21(int,int,int,int);
 void readFile(char*, char*, int*);
+void executeProgram(char*);
+void terminate();
 
 void main(){
 	char buffer[13312];
-	int sectorsread = 0;
 	printstring("Hello world\r\n");
 	makeInterrupt21();
-	//sectorsread = readFile("messag", buffer);
-	interrupt(0x21,3,"messag", buffer,&sectorsread);
-	if (sectorsread > 0)
-		interrupt(0x21,0,buffer,0,0);
-	else
-		interrupt(0x21,0,"messag not found\r\n",0,0);
+	//interrupt(0x21,3,"messag", buffer,&sectorsread);
+	//if (sectorsread > 0)
+	//	interrupt(0x21,0,buffer,0,0);
+	//else
+	//	interrupt(0x21,0,"messag not found\r\n",0,0);
+	interrupt(0x21,4,"shell",0,0);
         while(1);
 }
 
@@ -81,6 +82,12 @@ void handleInterrupt21(int AX, int BX, int CX, int DX){
 	else if (AX==3){
 	readFile(BX,CX,DX);
 	}
+	else if (AX==4){
+	executeProgram(BX);
+	}
+	else if (AX==5){
+	terminate();
+	}
 	else{
 	printstring("Error with interrupt 21");
 	}
@@ -110,4 +117,25 @@ void readFile(char* filename, char* buffer, int* sectorsread){
 			fileentry = 512;
 		}
 	}
+}
+void executeProgram(char* name){
+	char buffer[13312];
+	int sectorsread = 0;
+	int i = 0;
+	interrupt(0x21, 3, name, buffer, &sectorsread);
+	for (i = 0; i < 13312; i++){
+		putInMemory(0x2000, i,buffer[i]);
+	}
+	launchProgram(0x2000);
+}
+
+void terminate(){
+	char shellname[6];
+	shellname[0]='s';
+	shellname[1]='h';
+	shellname[2]='e';
+	shellname[3]='l';
+	shellname[4]='l';
+	shellname[5]='\0';
+	executeProgram(shellname);
 }
